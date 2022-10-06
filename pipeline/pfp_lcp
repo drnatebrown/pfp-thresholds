@@ -112,7 +112,7 @@ def main():
     # ---------- parsing of the input file
     start0 = start = time.time()
     if args.t>0:
-            if args.f:
+      if args.f:
         command = "{exe} {file} -w {wsize} -p {modulus} -t {th} -f".format(
                 exe = os.path.join(args.bigbwt_dir,parse_fasta_exe),
                 wsize=args.wsize, modulus = args.mod, th=args.t, file=args.input)
