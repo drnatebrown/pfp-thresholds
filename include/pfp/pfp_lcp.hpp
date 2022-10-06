@@ -59,38 +59,14 @@ public:
                 head(0)
                 // heads(1, 0)
     {
-        // Opening output files
-        // std::string outfile = filename + std::string(".lcp");
-        // if ((lcp_file = fopen(outfile.c_str(), "w")) == nullptr)
-        //     error("open() file " + outfile + " failed");
-
-        std::string outfile = filename + std::string(".thr_lce");
-        if ((lce_file = fopen(outfile.c_str(), "w")) == nullptr)
+        std::string outfile = filename + std::string(".slcp");
+        if ((lcp_file = fopen(outfile.c_str(), "w")) == nullptr)
             error("open() file " + outfile + " failed");
-
-        // outfile = filename + std::string(".ssa");
-        // if ((ssa_file = fopen(outfile.c_str(), "w")) == nullptr)
-        //     error("open() file " + outfile + " failed");
-
-        // outfile = filename + std::string(".esa");
-        // if ((esa_file = fopen(outfile.c_str(), "w")) == nullptr)
-        //     error("open() file " + outfile + " failed");
-
-        // outfile = filename + std::string(".bwt");
-        // if ((bwt_file = fopen(outfile.c_str(), "w")) == nullptr)
-        //     error("open() file " + outfile + " failed");
 
         assert(pf.dict.d[pf.dict.saD[0]] == EndOfDict);
 
         phrase_suffix_t curr;
         phrase_suffix_t prev;
-        
-        std::vector<ulint> min_lcp = std::vector<ulint>(SIGMA, ULONG_MAX);
-        std::vector<ulint> min_lcp_before = std::vector<ulint>(SIGMA, 0);
-        std::vector<ulint> min_lcp_after = std::vector<ulint>(SIGMA, 0);
-
-        std::vector<bool> seen = std::vector<bool>(SIGMA, false);
-        std::vector<char> chars = std::vector<char>();
 
         char last_head;
         ulint k = 0;
@@ -140,7 +116,6 @@ public:
 
                 size_t prev_occ;
                 bool first = true;
-                bool new_run = false;
                 while (!pq.empty())
                 {
                     auto curr_occ = pq.top();
@@ -158,72 +133,18 @@ public:
                     // Update min_s
                     //print_lcp(lcp_suffix, j);
 
-                    for (char c : chars)
-                    {
-                        // new_run??? maybe don't care about this case (we do its the LCP[k+1..c])
-                        if (c != head || head != last_head)
-                        {
-                            if (lcp_suffix < min_lcp[c])
-                            {
-                                min_lcp_before[c] = min_lcp[c];
-                                min_lcp_after[c] = ULONG_MAX;
-
-                                min_lcp[c] = lcp_suffix;
-                            }
-                            else
-                            {
-                                min_lcp_after[c] = std::min(min_lcp_after[c], lcp_suffix);
-                            }
-                        }
-                    }
-
-                    if(!seen[head])
-                    {
-                        // these can be combined into a set
-                        seen[head] = true;
-                        chars.push_back(head);
-
-                        //lce_before.push_back(0);
-                        //lce_after.push_back(0);
-
-                        size_t tmp_val = 0;
-                        if (fwrite((char *)&tmp_val, sizeof(tmp_val), 1, lce_file) != 1)
-                            error("LCE write error 1");
-                        
-                        if (fwrite((char *)&tmp_val, sizeof(tmp_val), 1, lce_file) != 1)
-                            error("LCE write error 1");
-
-                        k++;
-                        //std::cout << head << "\t0 0\t0\n";
-                        std::cout << head << " 0\n";
-                    }
-                    else if (head != last_head)
+                    if (head != last_head || k == 0)
                     {
                         //lce_before.push_back((min_lcp_before[head] != ULONG_MAX) ? min_lcp_before[head] : 0);
                         //lce_after.push_back((min_lcp_after[head] != ULONG_MAX) ? min_lcp_after[head] : 0);
 
-                        size_t before_val = (min_lcp_before[head] != ULONG_MAX) ? min_lcp_before[head] : 0;
-                        if (fwrite((char *)&before_val, sizeof(before_val), 1, lce_file) != 1)
-                            error("LCE write error 1");
-                        
-                        size_t after_val = (min_lcp_after[head] != ULONG_MAX) ? min_lcp_after[head] : 0;
-                        if (fwrite((char *)&after_val, sizeof(after_val), 1, lce_file) != 1)
-                            error("LCE write error 1");
+                        size_t tmp_val = lcp_suffix;
+                        if (fwrite(&tmp_val, THRBYTES, 1, lcp_file) != 1)
+                            error("LCP write error 1");
 
-                        size_t thr = min_lcp[head];
-
-                        min_lcp_before[head] = ULONG_MAX;
-                        min_lcp_after[head] = ULONG_MAX;
-
-                        min_lcp[head] = ULONG_MAX;
+                        //std::cout << k << " " << head << "\t" << lcp_suffix << "\n";
 
                         k++;
-                        //std::cout << head << "\t" << before_val << " " << after_val << "\t" << thr << "\n";
-                        std::cout << head << " " << thr << "\n";
-                    }
-                    else
-                    {
-                        //std::cout << head << "\n";
                     }
                     last_head = head;
 
@@ -263,7 +184,7 @@ public:
         //fclose(esa_file);
         //fclose(bwt_file);
         //fclose(lcp_file);
-        fclose(lce_file);
+        fclose(lcp_file);
     }
 
 private:
@@ -283,7 +204,7 @@ private:
     size_t esa = 0;
 
     // FILE *lcp_file;
-    FILE *lce_file;
+    FILE *lcp_file;
 
     // FILE *bwt_file;
 
