@@ -187,15 +187,15 @@ public:
                         //lce_after.push_back(0);
 
                         size_t tmp_val = 0;
-                        if (fwrite((char *)&tmp_val, sizeof(tmp_val), 1, lce_file) != 1)
+                        if (fwrite(&tmp_val, THRBYTES, 1, lce_file) != 1)
                             error("LCE write error 1");
                         
-                        if (fwrite((char *)&tmp_val, sizeof(tmp_val), 1, lce_file) != 1)
-                            error("LCE write error 1");
+                        if (fwrite(&tmp_val, THRBYTES, 1, lce_file) != 1)
+                            error("LCE write error 2");
 
                         k++;
                         //std::cout << head << "\t0 0\t0\n";
-                        std::cout << head << " 0\n";
+                        //std::cout << head << " 0\n";
                     }
                     else if (head != last_head)
                     {
@@ -203,14 +203,14 @@ public:
                         //lce_after.push_back((min_lcp_after[head] != ULONG_MAX) ? min_lcp_after[head] : 0);
 
                         size_t before_val = (min_lcp_before[head] != ULONG_MAX) ? min_lcp_before[head] : 0;
-                        if (fwrite((char *)&before_val, sizeof(before_val), 1, lce_file) != 1)
+                        if (fwrite(&before_val, THRBYTES, 1, lce_file) != 1)
                             error("LCE write error 1");
                         
                         size_t after_val = (min_lcp_after[head] != ULONG_MAX) ? min_lcp_after[head] : 0;
-                        if (fwrite((char *)&after_val, sizeof(after_val), 1, lce_file) != 1)
-                            error("LCE write error 1");
+                        if (fwrite(&after_val, THRBYTES, 1, lce_file) != 1)
+                            error("LCE write error 2");
 
-                        size_t thr = min_lcp[head];
+                        //size_t thr = min_lcp[head];
 
                         min_lcp_before[head] = ULONG_MAX;
                         min_lcp_after[head] = ULONG_MAX;
@@ -219,7 +219,7 @@ public:
 
                         k++;
                         //std::cout << head << "\t" << before_val << " " << after_val << "\t" << thr << "\n";
-                        std::cout << head << " " << thr << "\n";
+                        //std::cout << head << " " << thr << "\n";
                     }
                     else
                     {
@@ -253,7 +253,7 @@ public:
                 inc(curr);
             }
         }
-        std::cout << "k = " << k << "\n";
+        //std::cout << "k = " << k << "\n";
         // print last BWT char and SA sample
         // print_sa();
         // print_bwt();
