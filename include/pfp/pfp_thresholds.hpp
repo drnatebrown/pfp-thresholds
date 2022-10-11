@@ -1,16 +1,13 @@
 /* pfp_thresholds - computing thresholds from prefix free parsing 
     Copyright (C) 2020 Massimiliano Rossi
-
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
-
     This program is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
-
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see http://www.gnu.org/licenses/ .
 */
@@ -93,6 +90,10 @@ public:
 
         }
 
+        outfile = filename + std::string(".slcp");
+        if ((lcp_file = fopen(outfile.c_str(), "w")) == nullptr)
+            error("open() file " + outfile + " failed");
+
         assert(pf.dict.d[pf.dict.saD[0]] == EndOfDict);
 
         phrase_suffix_t curr;
@@ -143,7 +144,7 @@ public:
 
                         // Update min_s
                         update_min_s(lcp_suffix,j);
-
+                        update_lcp(lcp_suffix);
 
                         update_bwt(curr.bwt_char, pf.get_freq(curr.phrase));
                         update_min_s(lcp_suffix,j);
@@ -192,6 +193,7 @@ public:
                         first = false;
                         // Update min_s
                         update_min_s(lcp_suffix, j);
+                        update_lcp(lcp_suffix);
 
                         update_ssa(curr, *curr_occ.first);
 
@@ -256,6 +258,9 @@ private:
     size_t ssa = 0;
     size_t esa = 0;
 
+    size_t prev_lcp = 0;
+    size_t curr_lcp = 0;
+
     std::vector<uint64_t> thresholds;
     std::vector<uint64_t> thresholds_pos;
     std::vector<bool> never_seen;
@@ -268,6 +273,8 @@ private:
 
     FILE *thr_file;
     FILE *thr_pos_file;
+
+    FILE *lcp_file;
 
     inline bool inc(phrase_suffix_t& s)
     {
@@ -365,6 +372,11 @@ private:
         assert(esa < (pf.n - pf.w + 1ULL));
     }
 
+    inline void update_lcp(size_t _lcp)
+    {
+        curr_lcp = _lcp;
+    }
+
     inline void print_sa()
     {
         if (j < (pf.n - pf.w + 1ULL))
@@ -384,6 +396,13 @@ private:
             if (fwrite(&esa, SSABYTES, 1, esa_file) != 1)
                 error("SA write error 2");
         }
+
+    }
+
+    inline void print_lcp()
+    {
+        if (fwrite(&curr_lcp, SSABYTES, 1, lcp_file) != 1)
+            error("LCP write error 1");
 
     }
 
@@ -428,7 +447,9 @@ private:
             print_threshold(next_char);
             print_sa();
             print_bwt();
+            print_lcp();
 
+            prev_lcp = curr_lcp;
             head = next_char;
             // lengths.push_back(0); // Debug only
             length = 0; // Debug only
