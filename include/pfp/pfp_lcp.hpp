@@ -25,6 +25,7 @@
 #define _LCP_PFP_HH
 
 #include <common.hpp>
+#include <climits>
 
 #include <sdsl/rmq_support.hpp>
 #include <sdsl/int_vector.hpp>
@@ -34,6 +35,10 @@ extern "C"
 }
 
 #include <pfp.hpp>
+
+#define SIGMA 256
+
+typedef unsigned long int ulint;
 
 class pfp_lcp{
 public:
@@ -55,26 +60,43 @@ public:
                 // heads(1, 0)
     {
         // Opening output files
-        std::string outfile = filename + std::string(".lcp");
-        if ((lcp_file = fopen(outfile.c_str(), "w")) == nullptr)
+        // std::string outfile = filename + std::string(".lcp");
+        // if ((lcp_file = fopen(outfile.c_str(), "w")) == nullptr)
+        //     error("open() file " + outfile + " failed");
+
+        std::string outfile = filename + std::string(".thr_lce");
+        if ((lce_file = fopen(outfile.c_str(), "w")) == nullptr)
             error("open() file " + outfile + " failed");
 
-        outfile = filename + std::string(".ssa");
-        if ((ssa_file = fopen(outfile.c_str(), "w")) == nullptr)
-            error("open() file " + outfile + " failed");
+        // outfile = filename + std::string(".ssa");
+        // if ((ssa_file = fopen(outfile.c_str(), "w")) == nullptr)
+        //     error("open() file " + outfile + " failed");
 
-        outfile = filename + std::string(".esa");
-        if ((esa_file = fopen(outfile.c_str(), "w")) == nullptr)
-            error("open() file " + outfile + " failed");
+        // outfile = filename + std::string(".esa");
+        // if ((esa_file = fopen(outfile.c_str(), "w")) == nullptr)
+        //     error("open() file " + outfile + " failed");
 
-        outfile = filename + std::string(".bwt");
-        if ((bwt_file = fopen(outfile.c_str(), "w")) == nullptr)
-            error("open() file " + outfile + " failed");
+        // outfile = filename + std::string(".bwt");
+        // if ((bwt_file = fopen(outfile.c_str(), "w")) == nullptr)
+        //     error("open() file " + outfile + " failed");
 
         assert(pf.dict.d[pf.dict.saD[0]] == EndOfDict);
 
         phrase_suffix_t curr;
         phrase_suffix_t prev;
+        
+        std::vector<ulint> min_lcp = std::vector<ulint>(SIGMA, ULONG_MAX);
+        std::vector<ulint> min_lcp_before = std::vector<ulint>(SIGMA, 0);
+        std::vector<ulint> min_lcp_after = std::vector<ulint>(SIGMA, 0);
+
+        std::vector<bool> seen = std::vector<bool>(SIGMA, false);
+        std::vector<char> chars = std::vector<char>();
+
+        char last_head;
+        ulint k = 0;
+
+        //std::vector<ulint> lce_before = std::vector<ulint>();
+        //std::vector<ulint> lce_after = std::vector<ulint>();
 
         inc(curr);
         while (curr.i < pf.dict.saD.size())
@@ -99,7 +121,7 @@ public:
                 }
 
                 // Hard case
-                int_t lcp_suffix = compute_lcp_suffix(curr,prev);
+                ulint lcp_suffix = compute_lcp_suffix(curr,prev);
 
                 typedef std::pair<int_t *, std::pair<int_t *, uint8_t>> pq_t;
 
@@ -118,10 +140,13 @@ public:
 
                 size_t prev_occ;
                 bool first = true;
+                bool new_run = false;
                 while (!pq.empty())
                 {
                     auto curr_occ = pq.top();
                     pq.pop();
+
+                    char head = curr_occ.second.second;
 
                     if (!first)
                     {
@@ -129,8 +154,78 @@ public:
                         lcp_suffix = curr.suffix_length + min_s_lcp_T(*curr_occ.first, prev_occ);
                     }
                     first = false;
+
                     // Update min_s
-                    print_lcp(lcp_suffix, j);
+                    //print_lcp(lcp_suffix, j);
+
+                    for (char c : chars)
+                    {
+                        // new_run??? maybe don't care about this case (we do its the LCP[k+1..c])
+                        if (c != head || head != last_head)
+                        {
+                            if (lcp_suffix < min_lcp[c])
+                            {
+                                min_lcp_before[c] = min_lcp[c];
+                                min_lcp_after[c] = ULONG_MAX;
+
+                                min_lcp[c] = lcp_suffix;
+                            }
+                            else
+                            {
+                                min_lcp_after[c] = std::min(min_lcp_after[c], lcp_suffix);
+                            }
+                        }
+                    }
+
+                    if(!seen[head])
+                    {
+                        // these can be combined into a set
+                        seen[head] = true;
+                        chars.push_back(head);
+
+                        //lce_before.push_back(0);
+                        //lce_after.push_back(0);
+
+                        size_t tmp_val = 0;
+                        if (fwrite(&tmp_val, THRBYTES, 1, lce_file) != 1)
+                            error("LCE write error 1");
+                        
+                        if (fwrite(&tmp_val, THRBYTES, 1, lce_file) != 1)
+                            error("LCE write error 2");
+
+                        k++;
+                        //std::cout << head << "\t0 0\t0\n";
+                        //std::cout << head << " 0\n";
+                    }
+                    else if (head != last_head)
+                    {
+                        //lce_before.push_back((min_lcp_before[head] != ULONG_MAX) ? min_lcp_before[head] : 0);
+                        //lce_after.push_back((min_lcp_after[head] != ULONG_MAX) ? min_lcp_after[head] : 0);
+
+                        size_t before_val = (min_lcp_before[head] != ULONG_MAX) ? min_lcp_before[head] : 0;
+                        if (fwrite(&before_val, THRBYTES, 1, lce_file) != 1)
+                            error("LCE write error 1");
+                        
+                        size_t after_val = (min_lcp_after[head] != ULONG_MAX) ? min_lcp_after[head] : 0;
+                        if (fwrite(&after_val, THRBYTES, 1, lce_file) != 1)
+                            error("LCE write error 2");
+
+                        //size_t thr = min_lcp[head];
+
+                        min_lcp_before[head] = ULONG_MAX;
+                        min_lcp_after[head] = ULONG_MAX;
+
+                        min_lcp[head] = ULONG_MAX;
+
+                        k++;
+                        //std::cout << head << "\t" << before_val << " " << after_val << "\t" << thr << "\n";
+                        //std::cout << head << " " << thr << "\n";
+                    }
+                    else
+                    {
+                        //std::cout << head << "\n";
+                    }
+                    last_head = head;
 
                     update_ssa(curr, *curr_occ.first);
 
@@ -158,15 +253,17 @@ public:
                 inc(curr);
             }
         }
+        //std::cout << "k = " << k << "\n";
         // print last BWT char and SA sample
-        print_sa();
-        print_bwt();
+        // print_sa();
+        // print_bwt();
 
         // Close output files
-        fclose(ssa_file);
-        fclose(esa_file);
-        fclose(bwt_file);
-        fclose(lcp_file);
+        //fclose(ssa_file);
+        //fclose(esa_file);
+        //fclose(bwt_file);
+        //fclose(lcp_file);
+        fclose(lce_file);
     }
 
 private:
@@ -185,12 +282,13 @@ private:
     size_t ssa = 0;
     size_t esa = 0;
 
-    FILE *lcp_file;
+    // FILE *lcp_file;
+    FILE *lce_file;
 
-    FILE *bwt_file;
+    // FILE *bwt_file;
 
-    FILE *ssa_file;
-    FILE *esa_file;
+    // FILE *ssa_file;
+    // FILE *esa_file;
 
     inline bool inc(phrase_suffix_t& s)
     {
@@ -258,12 +356,12 @@ private:
         return lcp_suffix;
     }
 
-    inline void print_lcp(int_t val, size_t pos)
-    {
-        size_t tmp_val = val;
-        if (fwrite(&tmp_val, THRBYTES, 1, lcp_file) != 1)
-            error("LCP write error 1");
-    }
+    // inline void print_lcp(int_t val, size_t pos)
+    // {
+    //     size_t tmp_val = val;
+    //     if (fwrite(&tmp_val, THRBYTES, 1, lcp_file) != 1)
+    //         error("LCP write error 1");
+    // }
 
     // We can put here the check if we want to store the LCP or stream it out
     inline void new_min_s(int_t val, size_t pos)
@@ -284,42 +382,42 @@ private:
         assert(esa < (pf.n - pf.w + 1ULL));
     }
 
-    inline void print_sa()
-    {
-        if (j < (pf.n - pf.w + 1ULL))
-        {
-            size_t pos = j;
-            if (fwrite(&pos, SSABYTES, 1, ssa_file) != 1)
-                error("SA write error 1");
-            if (fwrite(&ssa, SSABYTES, 1, ssa_file) != 1)
-                error("SA write error 2");
-        }
+    // inline void print_sa()
+    // {
+    //     if (j < (pf.n - pf.w + 1ULL))
+    //     {
+    //         size_t pos = j;
+    //         if (fwrite(&pos, SSABYTES, 1, ssa_file) != 1)
+    //             error("SA write error 1");
+    //         if (fwrite(&ssa, SSABYTES, 1, ssa_file) != 1)
+    //             error("SA write error 2");
+    //     }
 
-        if (j > 0)
-        {
-            size_t pos = j - 1;
-            if (fwrite(&pos, SSABYTES, 1, esa_file) != 1)
-                error("SA write error 1");
-            if (fwrite(&esa, SSABYTES, 1, esa_file) != 1)
-                error("SA write error 2");
-        }
-    }
+    //     if (j > 0)
+    //     {
+    //         size_t pos = j - 1;
+    //         if (fwrite(&pos, SSABYTES, 1, esa_file) != 1)
+    //             error("SA write error 1");
+    //         if (fwrite(&esa, SSABYTES, 1, esa_file) != 1)
+    //             error("SA write error 2");
+    //     }
+    // }
 
-    inline void print_bwt()
-    {   
-        for (size_t i = 0; i < length; ++i)
-        {
-            if (fputc(head, bwt_file) == EOF)
-                error("BWT write error 1");
-        }
-    }
+    // inline void print_bwt()
+    // {   
+    //     for (size_t i = 0; i < length; ++i)
+    //     {
+    //         if (fputc(head, bwt_file) == EOF)
+    //             error("BWT write error 1");
+    //     }
+    // }
 
     inline void update_bwt(uint8_t next_char, size_t length_)
     {
         if (head != next_char)
         {
-            print_sa();
-            print_bwt();
+            //print_sa();
+            //print_bwt();
 
             head = next_char;
 
