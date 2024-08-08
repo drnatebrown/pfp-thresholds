@@ -28,7 +28,7 @@ make
 
 ### LCP computation
 
-* `pfp_lcp`: Build array storing pairs $min(LCP[i..j-1])$ and $min(LCP[j+1..k])$ where $j$ is a threshold, $i$ is the end of previous corresponding run, and $j$ is the start of the next corresponding run. See [aug_phoni](https://github.com/drnatebrown/aug_phoni)
+* `pfp_lcp`: Build array storing pairs $min(LCP[i..j-1])$ and $min(LCP[j+1..k])$ where $j$ is a threshold, $i$ is the end of previous corresponding run, and $k$ is the start of the next corresponding run. See [aug_phoni](https://github.com/drnatebrown/aug_phoni)
 
 ### Thresholds computation
 
