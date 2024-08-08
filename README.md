@@ -1,10 +1,11 @@
 # pfp-thresholds
 Computing thresholds from Prefix-free parsing
+Forked from https://github.com/maxrossi91/pfp-thresholds to add run-length encoding setting and augmented thresholds computation.
 
 ## Download
 
 ```console
-git clone https://github.com/maxrossi91/pfp-thresholds
+git clone https://github.com/drnatebrown/pfp-thresholds
 ```
 
 ## Compile
